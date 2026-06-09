@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="즐거운 영어">
+<meta name="theme-color" content="#E9F7FF">
+<title>즐거운 영어</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='40' fill='%234FC3F7'/%3E%3Ctext x='90' y='128' font-size='104' text-anchor='middle'%3E🦉%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Jua&display=swap');
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body { font-family: 'Fredoka','Jua',sans-serif; background: linear-gradient(170deg,#FFFBE9 0%,#E9F7FF 48%,#E7FBEE 100%);
+  min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; color: #4a4636; }
+.kfont { font-family: 'Jua','Fredoka',sans-serif; }
+.wrap { width: 100%; max-width: 520px; }
+.center { text-align: center; }
+.tapcard { transition: transform .12s ease; cursor: pointer; user-select: none; }
+.tapcard:active { transform: scale(0.92); }
+@keyframes pop { 0%{transform:scale(.6);opacity:0;} 60%{transform:scale(1.12);} 100%{transform:scale(1);opacity:1;} }
+@keyframes wiggle { 0%,100%{transform:rotate(-3deg);} 50%{transform:rotate(3deg);} }
+@keyframes floaty { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+@keyframes burst { 0%{transform:scale(0) rotate(0);opacity:1;} 100%{transform:scale(1.6) rotate(40deg);opacity:0;} }
+.pop { animation: pop .4s cubic-bezier(.2,1.4,.4,1) both; }
+.wiggle { animation: wiggle .4s ease-in-out; }
+.floaty { animation: floaty 3s ease-in-out infinite; }
+.confetti { position: fixed; font-size: 2rem; animation: burst .8s ease-out forwards; pointer-events:none; z-index: 60; }
+.stickerflash { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 11vh; z-index: 100; pointer-events: none; }
+#critters { position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+.verbadge { position: fixed; bottom: 6px; right: 9px; font-size: 0.72rem; color: rgba(90,74,58,.45); z-index: 101; pointer-events: none; font-family: monospace; }
+.critter { position: absolute; animation: critterin .5s cubic-bezier(.2,1.5,.4,1) both; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.28)); }
+@keyframes critterin { 0%{transform:scale(0) rotate(-20deg);} 70%{transform:scale(1.2);} 100%{transform:scale(1) rotate(var(--rot));} }
+input { font-family: 'Fredoka','Jua',sans-serif; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+h1 { font-size:2.7rem; color:#FF6B6B; margin:8px 0 4px; text-shadow:2px 3px 0 #fff; letter-spacing:1px; }
+h2 { font-size:1.7rem; color:#FF6B6B; margin:0; }
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+<div id="critters"></div>
+<div class="verbadge">1.0</div>
+<script>
+// ===== 알파벳 (대표 단어 + 그림) =====
+// ===== 단어 (그림 + 영어 + 뜻) =====
+var WORDS = [
+  {en:"cat",emoji:"🐱",ko:"고양이"},
+  {en:"dog",emoji:"🐶",ko:"강아지"},
+  {en:"pig",emoji:"🐷",ko:"돼지"},
+  {en:"cow",emoji:"🐮",ko:"소"},
+  {en:"fox",emoji:"🦊",ko:"여우"},
+  {en:"lion",emoji:"🦁",ko:"사자"},
+  {en:"bear",emoji:"🐻",ko:"곰"},
+  {en:"tiger",emoji:"🐯",ko:"호랑이"},
+  {en:"panda",emoji:"🐼",ko:"판다"},
+  {en:"koala",emoji:"🐨",ko:"코알라"},
+  {en:"monkey",emoji:"🐵",ko:"원숭이"},
+  {en:"horse",emoji:"🐴",ko:"말"},
+  {en:"sheep",emoji:"🐑",ko:"양"},
+  {en:"goat",emoji:"🐐",ko:"염소"},
+  {en:"deer",emoji:"🦌",ko:"사슴"},
+  {en:"rabbit",emoji:"🐰",ko:"토끼"},
+  {en:"mouse",emoji:"🐭",ko:"쥐"},
+  {en:"hamster",emoji:"🐹",ko:"햄스터"},
+  {en:"wolf",emoji:"🐺",ko:"늑대"},
+  {en:"zebra",emoji:"🦓",ko:"얼룩말"},
+  {en:"giraffe",emoji:"🦒",ko:"기린"},
+  {en:"elephant",emoji:"🐘",ko:"코끼리"},
+  {en:"camel",emoji:"🐫",ko:"낙타"},
+  {en:"kangaroo",emoji:"🦘",ko:"캥거루"},
+  {en:"hedgehog",emoji:"🦔",ko:"고슴도치"},
+  {en:"squirrel",emoji:"🐿️",ko:"다람쥐"},
+  {en:"dinosaur",emoji:"🦕",ko:"공룡"},
+  {en:"dragon",emoji:"🐉",ko:"용"},
+  {en:"unicorn",emoji:"🦄",ko:"유니콘"},
+  {en:"leopard",emoji:"🐆",ko:"표범"},
+  {en:"gorilla",emoji:"🦍",ko:"고릴라"},
+  {en:"rhino",emoji:"🦏",ko:"코뿔소"},
+  {en:"hippo",emoji:"🦛",ko:"하마"},
+  {en:"bat",emoji:"🦇",ko:"박쥐"},
+  {en:"raccoon",emoji:"🦝",ko:"너구리"},
+  {en:"llama",emoji:"🦙",ko:"라마"},
+  {en:"ox",emoji:"🐂",ko:"황소"},
+  {en:"pony",emoji:"🐴",ko:"조랑말"},
+  {en:"cub",emoji:"🐯",ko:"새끼"},
+  {en:"bird",emoji:"🐦",ko:"새"},
+  {en:"owl",emoji:"🦉",ko:"부엉이"},
+  {en:"hen",emoji:"🐔",ko:"닭"},
+  {en:"chick",emoji:"🐤",ko:"병아리"},
+  {en:"duck",emoji:"🦆",ko:"오리"},
+  {en:"eagle",emoji:"🦅",ko:"독수리"},
+  {en:"penguin",emoji:"🐧",ko:"펭귄"},
+  {en:"swan",emoji:"🦢",ko:"백조"},
+  {en:"parrot",emoji:"🦜",ko:"앵무새"},
+  {en:"peacock",emoji:"🦚",ko:"공작"},
+  {en:"turkey",emoji:"🦃",ko:"칠면조"},
+  {en:"rooster",emoji:"🐓",ko:"수탉"},
+  {en:"dove",emoji:"🕊️",ko:"비둘기"},
+  {en:"flamingo",emoji:"🦩",ko:"홍학"},
+  {en:"fish",emoji:"🐟",ko:"물고기"},
+  {en:"whale",emoji:"🐳",ko:"고래"},
+  {en:"dolphin",emoji:"🐬",ko:"돌고래"},
+  {en:"shark",emoji:"🦈",ko:"상어"},
+  {en:"octopus",emoji:"🐙",ko:"문어"},
+  {en:"crab",emoji:"🦀",ko:"게"},
+  {en:"shrimp",emoji:"🦐",ko:"새우"},
+  {en:"squid",emoji:"🦑",ko:"오징어"},
+  {en:"turtle",emoji:"🐢",ko:"거북이"},
+  {en:"seal",emoji:"🦭",ko:"물범"},
+  {en:"lobster",emoji:"🦞",ko:"바닷가재"},
+  {en:"snail",emoji:"🐌",ko:"달팽이"},
+  {en:"frog",emoji:"🐸",ko:"개구리"},
+  {en:"snake",emoji:"🐍",ko:"뱀"},
+  {en:"lizard",emoji:"🦎",ko:"도마뱀"},
+  {en:"crocodile",emoji:"🐊",ko:"악어"},
+  {en:"bee",emoji:"🐝",ko:"벌"},
+  {en:"ant",emoji:"🐜",ko:"개미"},
+  {en:"butterfly",emoji:"🦋",ko:"나비"},
+  {en:"ladybug",emoji:"🐞",ko:"무당벌레"},
+  {en:"spider",emoji:"🕷️",ko:"거미"},
+  {en:"worm",emoji:"🐛",ko:"애벌레"},
+  {en:"beetle",emoji:"🪲",ko:"딱정벌레"},
+  {en:"cricket",emoji:"🦗",ko:"귀뚜라미"},
+  {en:"apple",emoji:"🍎",ko:"사과"},
+  {en:"banana",emoji:"🍌",ko:"바나나"},
+  {en:"grapes",emoji:"🍇",ko:"포도"},
+  {en:"orange",emoji:"🍊",ko:"오렌지"},
+  {en:"lemon",emoji:"🍋",ko:"레몬"},
+  {en:"strawberry",emoji:"🍓",ko:"딸기"},
+  {en:"peach",emoji:"🍑",ko:"복숭아"},
+  {en:"cherry",emoji:"🍒",ko:"체리"},
+  {en:"melon",emoji:"🍈",ko:"멜론"},
+  {en:"watermelon",emoji:"🍉",ko:"수박"},
+  {en:"pear",emoji:"🍐",ko:"배"},
+  {en:"pineapple",emoji:"🍍",ko:"파인애플"},
+  {en:"kiwi",emoji:"🥝",ko:"키위"},
+  {en:"mango",emoji:"🥭",ko:"망고"},
+  {en:"coconut",emoji:"🥥",ko:"코코넛"},
+  {en:"tomato",emoji:"🍅",ko:"토마토"},
+  {en:"avocado",emoji:"🥑",ko:"아보카도"},
+  {en:"carrot",emoji:"🥕",ko:"당근"},
+  {en:"corn",emoji:"🌽",ko:"옥수수"},
+  {en:"potato",emoji:"🥔",ko:"감자"},
+  {en:"broccoli",emoji:"🥦",ko:"브로콜리"},
+  {en:"mushroom",emoji:"🍄",ko:"버섯"},
+  {en:"cucumber",emoji:"🥒",ko:"오이"},
+  {en:"onion",emoji:"🧅",ko:"양파"},
+  {en:"garlic",emoji:"🧄",ko:"마늘"},
+  {en:"eggplant",emoji:"🍆",ko:"가지"},
+  {en:"peanut",emoji:"🥜",ko:"땅콩"},
+  {en:"bread",emoji:"🍞",ko:"빵"},
+  {en:"cheese",emoji:"🧀",ko:"치즈"},
+  {en:"egg",emoji:"🥚",ko:"계란"},
+  {en:"cake",emoji:"🍰",ko:"케이크"},
+  {en:"pizza",emoji:"🍕",ko:"피자"},
+  {en:"hamburger",emoji:"🍔",ko:"햄버거"},
+  {en:"fries",emoji:"🍟",ko:"감자튀김"},
+  {en:"popcorn",emoji:"🍿",ko:"팝콘"},
+  {en:"cookie",emoji:"🍪",ko:"쿠키"},
+  {en:"donut",emoji:"🍩",ko:"도넛"},
+  {en:"candy",emoji:"🍬",ko:"사탕"},
+  {en:"chocolate",emoji:"🍫",ko:"초콜릿"},
+  {en:"lollipop",emoji:"🍭",ko:"막대사탕"},
+  {en:"honey",emoji:"🍯",ko:"꿀"},
+  {en:"rice",emoji:"🍚",ko:"밥"},
+  {en:"noodles",emoji:"🍜",ko:"국수"},
+  {en:"sushi",emoji:"🍣",ko:"초밥"},
+  {en:"sandwich",emoji:"🥪",ko:"샌드위치"},
+  {en:"pancake",emoji:"🥞",ko:"팬케이크"},
+  {en:"pie",emoji:"🥧",ko:"파이"},
+  {en:"milk",emoji:"🥛",ko:"우유"},
+  {en:"juice",emoji:"🧃",ko:"주스"},
+  {en:"water",emoji:"💧",ko:"물"},
+  {en:"tea",emoji:"🍵",ko:"차"},
+  {en:"soup",emoji:"🍲",ko:"수프"},
+  {en:"salad",emoji:"🥗",ko:"샐러드"},
+  {en:"croissant",emoji:"🥐",ko:"크루아상"},
+  {en:"pretzel",emoji:"🥨",ko:"프레첼"},
+  {en:"sun",emoji:"☀️",ko:"해"},
+  {en:"moon",emoji:"🌙",ko:"달"},
+  {en:"star",emoji:"⭐",ko:"별"},
+  {en:"cloud",emoji:"☁️",ko:"구름"},
+  {en:"rainbow",emoji:"🌈",ko:"무지개"},
+  {en:"snow",emoji:"❄️",ko:"눈"},
+  {en:"snowman",emoji:"⛄",ko:"눈사람"},
+  {en:"fire",emoji:"🔥",ko:"불"},
+  {en:"tree",emoji:"🌳",ko:"나무"},
+  {en:"flower",emoji:"🌸",ko:"꽃"},
+  {en:"rose",emoji:"🌹",ko:"장미"},
+  {en:"sunflower",emoji:"🌻",ko:"해바라기"},
+  {en:"tulip",emoji:"🌷",ko:"튤립"},
+  {en:"cactus",emoji:"🌵",ko:"선인장"},
+  {en:"leaf",emoji:"🍃",ko:"나뭇잎"},
+  {en:"mountain",emoji:"⛰️",ko:"산"},
+  {en:"volcano",emoji:"🌋",ko:"화산"},
+  {en:"ocean",emoji:"🌊",ko:"바다"},
+  {en:"lightning",emoji:"⚡",ko:"번개"},
+  {en:"earth",emoji:"🌍",ko:"지구"},
+  {en:"car",emoji:"🚗",ko:"자동차"},
+  {en:"bus",emoji:"🚌",ko:"버스"},
+  {en:"taxi",emoji:"🚕",ko:"택시"},
+  {en:"truck",emoji:"🚚",ko:"트럭"},
+  {en:"train",emoji:"🚂",ko:"기차"},
+  {en:"plane",emoji:"✈️",ko:"비행기"},
+  {en:"helicopter",emoji:"🚁",ko:"헬리콥터"},
+  {en:"ship",emoji:"🚢",ko:"배"},
+  {en:"boat",emoji:"⛵",ko:"보트"},
+  {en:"rocket",emoji:"🚀",ko:"로켓"},
+  {en:"bike",emoji:"🚲",ko:"자전거"},
+  {en:"tractor",emoji:"🚜",ko:"트랙터"},
+  {en:"scooter",emoji:"🛴",ko:"킥보드"},
+  {en:"ball",emoji:"⚽",ko:"공"},
+  {en:"balloon",emoji:"🎈",ko:"풍선"},
+  {en:"gift",emoji:"🎁",ko:"선물"},
+  {en:"clock",emoji:"⏰",ko:"시계"},
+  {en:"umbrella",emoji:"☂️",ko:"우산"},
+  {en:"bag",emoji:"🎒",ko:"가방"},
+  {en:"book",emoji:"📚",ko:"책"},
+  {en:"pencil",emoji:"✏️",ko:"연필"},
+  {en:"crayon",emoji:"🖍️",ko:"크레용"},
+  {en:"scissors",emoji:"✂️",ko:"가위"},
+  {en:"ruler",emoji:"📏",ko:"자"},
+  {en:"hat",emoji:"🎩",ko:"모자"},
+  {en:"crown",emoji:"👑",ko:"왕관"},
+  {en:"glasses",emoji:"👓",ko:"안경"},
+  {en:"shoe",emoji:"👟",ko:"신발"},
+  {en:"sock",emoji:"🧦",ko:"양말"},
+  {en:"shirt",emoji:"👕",ko:"셔츠"},
+  {en:"dress",emoji:"👗",ko:"드레스"},
+  {en:"key",emoji:"🔑",ko:"열쇠"},
+  {en:"lock",emoji:"🔒",ko:"자물쇠"},
+  {en:"bell",emoji:"🔔",ko:"종"},
+  {en:"camera",emoji:"📷",ko:"카메라"},
+  {en:"phone",emoji:"📱",ko:"휴대폰"},
+  {en:"lamp",emoji:"💡",ko:"전등"},
+  {en:"candle",emoji:"🕯️",ko:"양초"},
+  {en:"cup",emoji:"☕",ko:"컵"},
+  {en:"spoon",emoji:"🥄",ko:"숟가락"},
+  {en:"plate",emoji:"🍽️",ko:"접시"},
+  {en:"bed",emoji:"🛏️",ko:"침대"},
+  {en:"chair",emoji:"🪑",ko:"의자"},
+  {en:"door",emoji:"🚪",ko:"문"},
+  {en:"window",emoji:"🪟",ko:"창문"},
+  {en:"box",emoji:"📦",ko:"상자"},
+  {en:"kite",emoji:"🪁",ko:"연"},
+  {en:"drum",emoji:"🥁",ko:"북"},
+  {en:"guitar",emoji:"🎸",ko:"기타"},
+  {en:"piano",emoji:"🎹",ko:"피아노"},
+  {en:"violin",emoji:"🎻",ko:"바이올린"},
+  {en:"trumpet",emoji:"🎺",ko:"트럼펫"},
+  {en:"ring",emoji:"💍",ko:"반지"},
+  {en:"watch",emoji:"⌚",ko:"손목시계"},
+  {en:"mirror",emoji:"🪞",ko:"거울"},
+  {en:"broom",emoji:"🧹",ko:"빗자루"},
+  {en:"basket",emoji:"🧺",ko:"바구니"},
+  {en:"magnet",emoji:"🧲",ko:"자석"},
+  {en:"hammer",emoji:"🔨",ko:"망치"},
+  {en:"paint",emoji:"🎨",ko:"그림물감"},
+  {en:"robot",emoji:"🤖",ko:"로봇"},
+  {en:"ghost",emoji:"👻",ko:"유령"},
+  {en:"alien",emoji:"👽",ko:"외계인"},
+  {en:"teddy",emoji:"🧸",ko:"곰인형"},
+  {en:"dice",emoji:"🎲",ko:"주사위"},
+  {en:"puzzle",emoji:"🧩",ko:"퍼즐"},
+  {en:"trophy",emoji:"🏆",ko:"트로피"},
+  {en:"medal",emoji:"🏅",ko:"메달"},
+  {en:"coin",emoji:"🪙",ko:"동전"},
+  {en:"map",emoji:"🗺️",ko:"지도"},
+  {en:"anchor",emoji:"⚓",ko:"닻"},
+  {en:"telescope",emoji:"🔭",ko:"망원경"},
+  {en:"soap",emoji:"🧼",ko:"비누"},
+  {en:"basketball",emoji:"🏀",ko:"농구공"},
+  {en:"baseball",emoji:"⚾",ko:"야구공"},
+  {en:"tennis",emoji:"🎾",ko:"테니스"},
+  {en:"hand",emoji:"✋",ko:"손"},
+  {en:"eye",emoji:"👁️",ko:"눈"},
+  {en:"ear",emoji:"👂",ko:"귀"},
+  {en:"nose",emoji:"👃",ko:"코"},
+  {en:"mouth",emoji:"👄",ko:"입"},
+  {en:"tooth",emoji:"🦷",ko:"이"},
+  {en:"foot",emoji:"🦶",ko:"발"},
+  {en:"bone",emoji:"🦴",ko:"뼈"},
+  {en:"baby",emoji:"👶",ko:"아기"},
+  {en:"boy",emoji:"👦",ko:"남자아이"},
+  {en:"girl",emoji:"👧",ko:"여자아이"},
+  {en:"king",emoji:"🤴",ko:"왕"},
+  {en:"queen",emoji:"👸",ko:"여왕"},
+  {en:"clown",emoji:"🤡",ko:"광대"},
+  {en:"santa",emoji:"🎅",ko:"산타"},
+  {en:"witch",emoji:"🧙",ko:"마녀"},
+  {en:"fairy",emoji:"🧚",ko:"요정"},
+  {en:"mermaid",emoji:"🧜",ko:"인어"},
+  {en:"angel",emoji:"👼",ko:"천사"},
+  {en:"house",emoji:"🏠",ko:"집"},
+  {en:"school",emoji:"🏫",ko:"학교"},
+  {en:"castle",emoji:"🏰",ko:"성"},
+  {en:"hospital",emoji:"🏥",ko:"병원"},
+  {en:"store",emoji:"🏪",ko:"가게"},
+  {en:"tent",emoji:"⛺",ko:"텐트"},
+  {en:"tower",emoji:"🗼",ko:"탑"}
+];
+
+var LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+var COLORS = ["#4FC3F7","#FF8A65","#4DB6AC","#FFB300","#9575CD","#F06292","#66BB6A","#FF7043","#26C6DA","#AB47BC","#FFA726","#42A5F5"];
+
+var STICKERS = ["🦄","🌈","⭐","🎈","🍭","🦋","🌟","🎀","🧸","🍓","🐧","🚀","🌻","🍩","🐳","🎨"];
+var CRITTERS = ["🐰","🐿️","🐹","🐱","🐶","🐻","🦊","🐥","🐭","🦔","🐨","🐼","🐧","🐤"];
+var PRAISES = ["Good job","Great","Awesome","Well done","Nice","Wonderful","Perfect","Bravo","Yay","Cool"];
+
+var EN_VOICE=null;
+var FEMALE_HINT=/female|woman|girl|samantha|victoria|allison|ava|susan|zira|aria|jenny|michelle|eva|joanna|salli|kendra|kimberly|ivy|nicky|google us english/i;
+var MALE_HINT=/\bmale\b|david|mark|fred|alex|aaron|daniel|guy|eric|christopher|\btom\b|james|arthur|oliver/i;
+function pickVoice(){
+  var vs=speechSynthesis.getVoices(); if(!vs||!vs.length) return null;
+  function norm(v){return (v.lang||"").replace("_","-").toLowerCase();}
+  var us=vs.filter(function(v){return norm(v)==="en-us";});
+  var pool=us.length?us:vs.filter(function(v){return norm(v).indexOf("en")===0;});
+  if(!pool.length) pool=vs;
+  var f=pool.filter(function(v){return FEMALE_HINT.test(v.name);})[0];
+  if(f) return f;
+  var nm=pool.filter(function(v){return !MALE_HINT.test(v.name);})[0];
+  if(nm) return nm;
+  return pool[0];
+}
+function speak(t){
+  if(!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  if(!EN_VOICE) EN_VOICE=pickVoice();
+  var u=new SpeechSynthesisUtterance(t); u.lang="en-US"; u.rate=0.82; u.pitch=1.15;
+  if(EN_VOICE) u.voice=EN_VOICE;
+  speechSynthesis.speak(u);
+}
+if("speechSynthesis" in window){ speechSynthesis.onvoiceschanged=function(){ EN_VOICE=pickVoice(); }; speechSynthesis.getVoices(); }
+function shuffle(a){return a.slice().sort(function(){return Math.random()-0.5;});}
+function rand(a){return a[Math.floor(Math.random()*a.length)];}
+function confetti(){
+  for(var i=0;i<12;i++){(function(i){
+    var s=document.createElement("span"); s.className="confetti"; s.textContent=["⭐","🎉","✨","🌈","💖"][i%5];
+    s.style.left=(Math.random()*100)+"%"; s.style.top="28%"; document.body.appendChild(s);
+    setTimeout(function(){s.remove();},800);
+  })(i);}
+}
+
+function loadStk(){ try{ return parseInt(localStorage.getItem("english_stickers")||"0",10)||0; }catch(e){ return 0; } }
+function saveStk(n){ try{ localStorage.setItem("english_stickers",n); }catch(e){} }
+var collected = loadStk();
+function spawnCritter(){
+  var layer=document.getElementById("critters"); if(!layer) return;
+  var top=Math.random()<0.5?(4+Math.random()*12):(74+Math.random()*20);
+  var left=3+Math.random()*88;
+  var sp=document.createElement("span"); sp.className="critter";
+  sp.textContent=CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
+  sp.style.top=top+"%"; sp.style.left=left+"%"; sp.style.fontSize=(1.5+Math.random()).toFixed(2)+"rem";
+  sp.style.setProperty("--rot",(Math.random()*30-15).toFixed(1)+"deg");
+  layer.appendChild(sp); while(layer.children.length>120) layer.removeChild(layer.firstChild);
+}
+function award(){
+  spawnCritter();
+  if(collected>=STICKERS.length) return;
+  collected++; saveStk(collected);
+  var f=document.createElement("div"); f.className="stickerflash";
+  f.innerHTML='<div class="pop" style="background:#fff;border-radius:30px;padding:26px 34px;text-align:center;border:6px solid #FFD93D;box-shadow:0 14px 30px rgba(0,0,0,.18)">'+
+    '<div style="font-size:4.5rem;line-height:1">'+STICKERS[collected-1]+'</div>'+
+    '<div class="kfont" style="font-size:1.5rem;color:#FF8F00;margin-top:6px">새 스티커! 🎉</div></div>';
+  document.body.appendChild(f); setTimeout(function(){f.remove();},1700);
+}
+
+function clearCritters(){ memGen++; var layer=document.getElementById("critters"); if(layer) layer.innerHTML=""; }
+
+var app=document.getElementById("app");
+function el(h){ app.innerHTML=h; }
+function backBar(title){
+  return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'+
+    '<div class="tapcard" id="backBtn" style="background:#fff;border-radius:20px;padding:10px 16px;font-size:1.3rem;box-shadow:0 4px 0 rgba(0,0,0,.1)">👈</div>'+
+    '<h2>'+title+'</h2></div>';
+}
+function bindBack(){ var b=document.getElementById("backBtn"); if(b) b.onclick=home; }
+function scoreBadge(s){
+  return '<div style="display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:8px 18px;margin-bottom:22px;box-shadow:0 4px 0 rgba(0,0,0,.08)">'+
+    '<span style="font-size:1.4rem">⭐</span><span style="font-size:1.5rem;color:#FF8F00">'+s+'</span></div>';
+}
+
+// ===== 홈 =====
+function home(){
+  clearCritters();
+  var btns=[
+    {id:"listen",label:"듣고 찾기",emoji:"🎧",bg:"#4DB6AC",desc:"영어를 듣고 그림 찾기"},
+    {id:"first",label:"첫글자 찾기",emoji:"🅰️",bg:"#FFB74D",desc:"그림의 첫 글자 맞히기"},
+    {id:"spell",label:"단어 만들기",emoji:"🧩",bg:"#BA68C8",desc:"글자로 영어 단어 만들기"},
+    {id:"fill",label:"빈칸 채우기",emoji:"📝",bg:"#5C6BC0",desc:"문장 듣고 빈칸 채우기"},
+    {id:"sentence",label:"문장 만들기",emoji:"✍️",bg:"#26A69A",desc:"단어 순서대로 문장 완성"},
+    {id:"memory",label:"짝 맞추기",emoji:"🃏",bg:"#EC407A",desc:"그림과 단어 짝 찾기"},
+    {id:"stickers",label:"내 스티커",emoji:"🏆",bg:"#FF8A65",desc:"모은 스티커 "+collected+"개"}
+  ];
+  var h='<div class="center" style="padding-top:18px">'+
+    '<div class="floaty" style="font-size:4rem">🦉</div><h1>ABC</h1>'+
+    '<p class="kfont" style="font-size:1.35rem;color:#FF6B6B;margin:0 0 4px">즐거운 영어</p>'+
+    '<p class="kfont" style="font-size:1.2rem;color:#7A6A5A;margin-bottom:24px">놀면서 영어를 배워요!</p>'+
+    '<div style="display:flex;flex-direction:column;gap:15px">';
+  btns.forEach(function(b){
+    h+='<div class="tapcard pop" data-go="'+b.id+'" style="background:'+b.bg+';border-radius:28px;padding:18px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 0 rgba(0,0,0,.12),0 12px 22px '+b.bg+'66;border:4px solid #fff">'+
+      '<div style="font-size:2.6rem">'+b.emoji+'</div><div style="text-align:left">'+
+      '<div style="font-size:1.6rem;color:#fff;text-shadow:1px 2px 0 rgba(0,0,0,.15)">'+b.label+'</div>'+
+      '<div class="kfont" style="font-size:1.05rem;color:#ffffffe6">'+b.desc+'</div></div></div>';
+  });
+  h+='</div></div>';
+  el(h);
+  document.querySelectorAll("[data-go]").forEach(function(n){ n.onclick=function(){ go(n.getAttribute("data-go")); }; });
+}
+
+// ===== 듣고 찾기 (단어 읽기) =====
+var lScore=0;
+function listen(){ lScore=0; listenRound(); }
+function listenRound(){
+  var t=rand(WORDS);
+  var o=shuffle(WORDS.filter(function(w){return w.en!==t.en;})).slice(0,2);
+  var opts=shuffle([t].concat(o));
+  var h=backBar("듣고 찾기")+'<div class="center">'+scoreBadge(lScore);
+  h+='<div class="tapcard" id="hear" style="background:#4DB6AC;border-radius:26px;padding:22px;margin-bottom:24px;border:5px solid #fff;box-shadow:0 8px 22px #4DB6AC66">'+
+     '<div style="font-size:2.8rem">🔊</div>'+
+     '<div class="kfont" style="font-size:1.4rem;color:#fff;margin-top:2px">잘 듣고 단어를 찾아보세요!</div></div>';
+  h+='<div style="display:flex;flex-direction:column;gap:14px">';
+  opts.forEach(function(o,i){
+    var col=COLORS[i%COLORS.length];
+    h+='<div class="tapcard" data-opt="'+i+'" style="background:#fff;border-radius:24px;padding:20px;border:5px solid '+col+';box-shadow:0 6px 0 rgba(0,0,0,.1)">'+
+       '<div class="lbl" style="font-size:2.2rem;color:'+col+';font-weight:700;letter-spacing:1px">'+o.en+'</div></div>';
+  });
+  h+='</div><div id="fb" style="height:52px;margin-top:18px"></div></div>';
+  el(h); bindBack();
+  setTimeout(function(){speak(t.en);},350);
+  document.getElementById("hear").onclick=function(){speak(t.en);};
+  document.querySelectorAll("[data-opt]").forEach(function(n){
+    n.onclick=function(){
+      var i=+n.getAttribute("data-opt"); var o=opts[i];
+      if(o.en===t.en){
+        lScore++; award(); speak(rand(PRAISES)); confetti();
+        n.style.background=COLORS[i%COLORS.length]; n.querySelector(".lbl").style.color="#fff"; n.className="tapcard pop";
+        document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.5rem;color:#56C596">Good job! '+t.emoji+' '+t.ko+' 🎉</div>';
+        setTimeout(listenRound,1500);
+      } else {
+        speak("Try again");
+        document.getElementById("fb").innerHTML='<div class="wiggle kfont" style="font-size:1.5rem;color:#FF8A65">다시 한번! 💪</div>';
+      }
+    };
+  });
+}
+
+// ===== 첫글자 찾기 =====
+var fScore=0, fItem=null, fReveal=false;
+function first(){ fScore=0; firstRound(); }
+function firstRound(){
+  fItem=rand(WORDS); fReveal=false;
+  var correct=fItem.en[0].toUpperCase();
+  var distract=shuffle(LETTERS.filter(function(x){return x!==correct;})).slice(0,2);
+  fOpts=shuffle([correct].concat(distract));
+  firstRender();
+  setTimeout(function(){speak(fItem.en);},350);
+}
+var fOpts=[];
+function firstRender(){
+  var correct=fItem.en[0].toUpperCase();
+  var h=backBar("첫글자 찾기")+'<div class="center">'+scoreBadge(fScore);
+  h+='<div class="tapcard pop" id="pic" style="background:#fff;border-radius:30px;padding:22px;margin-bottom:8px;border:5px solid #FFB74D;box-shadow:0 10px 24px #FFB74D55">'+
+     '<div class="floaty" style="font-size:5.5rem">'+fItem.emoji+'</div>'+
+     '<div class="kfont" style="font-size:1.3rem;color:#C77B1B">'+fItem.ko+'</div>'+
+     '<div class="kfont" style="font-size:1.25rem;color:#C77B1B;margin-top:6px">🔊 첫 글자는 무엇일까요?</div>';
+  if(fReveal) h+='<div class="pop" style="font-size:1.8rem;color:#56C596;margin-top:8px;font-weight:600">'+fItem.en+'</div>';
+  h+='</div><div class="grid3" style="margin-top:18px">';
+  fOpts.forEach(function(L,i){
+    var col=COLORS[i%COLORS.length];
+    h+='<div class="tapcard" data-opt="'+L+'" style="background:#fff;border-radius:24px;padding:22px 0;border:5px solid '+col+';box-shadow:0 6px 0 rgba(0,0,0,.1)">'+
+       '<div class="lbl" style="font-size:3.2rem;color:'+col+';font-weight:700">'+L+'</div></div>';
+  });
+  h+='</div><div id="fb" style="height:50px;margin-top:18px"></div></div>';
+  el(h); bindBack();
+  document.getElementById("pic").onclick=function(){speak(fItem.en);};
+  document.querySelectorAll("[data-opt]").forEach(function(n){
+    n.onclick=function(){
+      if(fReveal) return;
+      var L=n.getAttribute("data-opt");
+      if(L===correct){
+        fScore++; fReveal=true; award(); speak(correct+", "+fItem.en); confetti();
+        firstRender();
+        document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.7rem;color:#56C596">Good job! 🎉</div>';
+        setTimeout(firstRound,1700);
+      } else {
+        speak("Try again");
+        document.getElementById("fb").innerHTML='<div class="wiggle kfont" style="font-size:1.5rem;color:#FF8A65">다시 한번! 💪</div>';
+      }
+    };
+  });
+}
+
+// ===== 단어 만들기 (스펠링) =====
+var sScore=0, sItem=null, sTiles=[], sBuild=[], sStatus=null, sHint=false;
+var SHORT = WORDS.filter(function(w){return w.en.indexOf(" ")<0 && /^[a-zA-Z]+$/.test(w.en) && w.en.length>=3 && w.en.length<=7;});
+function spell(){ sScore=0; spellSetup(rand(SHORT)); }
+function spellSetup(w){
+  sItem=w; sBuild=[]; sStatus=null; sHint=false;
+  var chars=w.en.toUpperCase().split("");
+  var pool=LETTERS.filter(function(c){return chars.indexOf(c)<0;});
+  var d1=rand(pool); var pool2=pool.filter(function(c){return c!==d1;}); var d2=rand(pool2);
+  var id=0; var all=[];
+  chars.forEach(function(c){ all.push({id:id++,ch:c}); });
+  all.push({id:id++,ch:d1}); all.push({id:id++,ch:d2});
+  sTiles=shuffle(all);
+  spellRender(); setTimeout(function(){speak(w.en);},350);
+}
+function spellNext(){ spellSetup(rand(SHORT)); }
+function spellRender(){
+  var target=sItem.en.toUpperCase();
+  var h=backBar("단어 만들기")+'<div class="center">'+scoreBadge(sScore);
+  h+='<div class="tapcard" id="hear" style="background:#BA68C8;border-radius:26px;padding:16px;margin-bottom:14px;border:5px solid #fff;box-shadow:0 8px 22px #BA68C866">'+
+     '<div style="font-size:3.4rem">'+sItem.emoji+'</div>'+
+     '<div class="kfont" style="font-size:1.2rem;color:#fff">'+sItem.ko+' · 🔊 다시 듣기</div></div>';
+  h+='<div style="display:flex;gap:9px;justify-content:center;margin-bottom:20px;flex-wrap:wrap">';
+  target.split("").forEach(function(_,i){
+    var placed=sBuild[i]!=null;
+    var ch=placed? sTiles.filter(function(t){return t.id===sBuild[i];})[0].ch : "";
+    h+='<div style="width:54px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:#8E3FA0;'+
+       'background:'+(placed?"#fff":"#F6ECFA")+';border:'+(placed?"4px solid #BA68C8":"4px dashed #DCBCE8")+'">'+ch+'</div>';
+  });
+  h+='</div><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;min-height:64px">';
+  sTiles.forEach(function(t){
+    var used=sBuild.indexOf(t.id)>=0;
+    h+='<div class="tapcard" data-tile="'+t.id+'" style="width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;'+
+       'background:'+(used?"#EFE6DA":"#4FC3F7")+';color:'+(used?"#bbb":"#fff")+';box-shadow:'+(used?"none":"0 5px 0 #2BA7E0")+';opacity:'+(used?0.5:1)+'">'+t.ch+'</div>';
+  });
+  h+='</div>';
+  if(sHint) h+='<div class="pop kfont" style="font-size:1.8rem;color:#BA68C8;margin-top:16px">정답: '+target+'</div>';
+  h+='<div style="display:flex;gap:10px;margin-top:20px">'+
+     '<div class="tapcard" id="hintBtn" style="flex:1;background:#fff;border-radius:18px;padding:13px;font-size:1.1rem;color:#FF8F00;box-shadow:0 4px 0 rgba(0,0,0,.08)">💡 힌트</div>'+
+     '<div class="tapcard" id="clearBtn" style="flex:1;background:#fff;border-radius:18px;padding:13px;font-size:1.1rem;color:#888;box-shadow:0 4px 0 rgba(0,0,0,.08)">🧹 지우기</div></div>';
+  h+='<div id="fb" style="height:44px;margin-top:14px"></div></div>';
+  el(h); bindBack();
+  document.getElementById("hear").onclick=function(){speak(sItem.en);};
+  document.getElementById("hintBtn").onclick=function(){ sHint=true; speak(sItem.en); spellRender(); };
+  document.getElementById("clearBtn").onclick=function(){ if(sStatus!=="good"){ sBuild=[]; sStatus=null; spellRender(); } };
+  document.querySelectorAll("[data-tile]").forEach(function(n){
+    n.onclick=function(){
+      if(sStatus==="good") return;
+      var id=+n.getAttribute("data-tile");
+      if(sBuild.indexOf(id)>=0) return;
+      sBuild.push(id);
+      if(sBuild.length===target.length){
+        var word=sBuild.map(function(b){return sTiles.filter(function(t){return t.id===b;})[0].ch;}).join("");
+        spellRender();
+        if(word===target){
+          sStatus="good"; sScore++; award(); speak(sItem.en+"! "+rand(PRAISES)); confetti();
+          document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.6rem;color:#56C596">정답이에요! 🎉</div>';
+          setTimeout(spellNext,1700);
+        } else {
+          sStatus="bad"; speak("Try again");
+          document.getElementById("fb").innerHTML='<div class="wiggle kfont" style="font-size:1.5rem;color:#FF8A65">다시 한번! 💪</div>';
+          setTimeout(function(){ sBuild=[]; sStatus=null; spellRender(); },750);
+        }
+      } else { spellRender(); }
+    };
+  });
+}
+
+// ===== 빈칸 채우기 (문장 듣기) =====
+var UNCOUNTABLE={milk:1,water:1,rice:1,bread:1,honey:1,snow:1,fire:1,juice:1,tea:1,soup:1,paint:1,soap:1,salad:1,popcorn:1,cheese:1};
+var SENT_NOUNS=WORDS.filter(function(w){return w.en.indexOf(" ")<0;});
+var SENT_CNT=SENT_NOUNS.filter(function(w){return !UNCOUNTABLE[w.en];});
+var THE_T=["Look at the {w}.","I see the {w}.","Where is the {w}?","The {w} is here.","I like the {w}.","Here is the {w}."];
+var A_T=["It is {a} {w}.","I have {a} {w}.","This is {a} {w}.","I want {a} {w}.","I see {a} {w}."];
+function artOf(w){ return "aeiou".indexOf(w.charAt(0))>=0?"an":"a"; }
+var fiScore=0, fiItem=null, fiFull="", fiBlank="", fiReveal=false, fiOpts=[];
+function fillGame(){ fiScore=0; fillRound(); }
+function fillRound(){
+  fiReveal=false;
+  var useA=Math.random()<0.45;
+  var pool=useA?SENT_CNT:SENT_NOUNS;
+  fiItem=rand(pool);
+  var tmpl=useA?rand(A_T):rand(THE_T);
+  var a=artOf(fiItem.en);
+  fiFull=tmpl.replace("{a}",a).replace("{w}",fiItem.en);
+  fiBlank=tmpl.replace("{a}",a).replace("{w}",'<span style="display:inline-block;min-width:70px;border-bottom:5px solid #5C6BC0;color:#5C6BC0">____</span>');
+  var d=shuffle(SENT_NOUNS.filter(function(w){return w.en!==fiItem.en;})).slice(0,2);
+  fiOpts=shuffle([fiItem].concat(d));
+  fillRender();
+  setTimeout(function(){speak(fiFull);},350);
+}
+function fillRender(){
+  var h=backBar("빈칸 채우기")+'<div class="center">'+scoreBadge(fiScore);
+  h+='<div class="tapcard" id="hear" style="background:#5C6BC0;border-radius:26px;padding:20px;margin-bottom:18px;border:5px solid #fff;box-shadow:0 8px 22px #5C6BC066">'+
+     '<div style="font-size:2.6rem">🔊</div>'+
+     '<div class="kfont" style="font-size:1.3rem;color:#fff;margin-top:2px">문장을 듣고 빈칸을 채워요!</div></div>';
+  h+='<div style="background:#fff;border-radius:24px;padding:24px 16px;margin-bottom:18px;border:4px solid #E3E5F5;box-shadow:0 6px 0 rgba(0,0,0,.06)">'+
+     '<div style="font-size:1.9rem;font-weight:700;color:#3a3a55;line-height:1.6">'+(fiReveal?fiFull:fiBlank)+'</div>';
+  if(fiReveal) h+='<div class="kfont" style="font-size:1.3rem;color:#9a8a7a;margin-top:8px">'+fiItem.emoji+' '+fiItem.ko+'</div>';
+  h+='</div><div style="display:flex;flex-direction:column;gap:13px">';
+  fiOpts.forEach(function(o,i){
+    var col=COLORS[i%COLORS.length];
+    h+='<div class="tapcard" data-opt="'+i+'" style="background:#fff;border-radius:22px;padding:18px;border:5px solid '+col+';box-shadow:0 6px 0 rgba(0,0,0,.1)">'+
+       '<div class="lbl" style="font-size:2rem;color:'+col+';font-weight:700;letter-spacing:1px">'+o.en+'</div></div>';
+  });
+  h+='</div><div id="fb" style="height:50px;margin-top:16px"></div></div>';
+  el(h); bindBack();
+  document.getElementById("hear").onclick=function(){speak(fiFull);};
+  document.querySelectorAll("[data-opt]").forEach(function(n){
+    n.onclick=function(){
+      if(fiReveal) return;
+      var i=+n.getAttribute("data-opt"); var o=fiOpts[i];
+      if(o.en===fiItem.en){
+        fiScore++; fiReveal=true; award(); speak(fiFull); confetti();
+        fillRender();
+        document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.6rem;color:#56C596">Good job! 🎉</div>';
+        setTimeout(fillRound,1900);
+      } else {
+        speak("Try again");
+        document.getElementById("fb").innerHTML='<div class="wiggle kfont" style="font-size:1.5rem;color:#FF8A65">다시 한번! 💪</div>';
+      }
+    };
+  });
+}
+
+// ===== 문장 만들기 (단어 순서) =====
+var SB_ADJ=["big","small","little","cute","happy","funny","fast","new","old","nice","good","tall"];
+var SB_COLOR=["red","blue","green","yellow","pink","black","white","brown","orange","purple"];
+var SB_ALL=WORDS.filter(function(w){return w.en.indexOf(" ")<0 && /^[a-zA-Z]+$/.test(w.en) && w.en.length<=7;});
+var SB_UNC=SB_ALL.filter(function(w){return UNCOUNTABLE[w.en];});
+var SB_C=SB_ALL.filter(function(w){return !UNCOUNTABLE[w.en];});
+var L1_C=[["I","see","{a}","{w}"],["Look","at","the","{w}"],["It","is","{a}","{w}"],["I","like","the","{w}"],["The","{w}","is","here"],["I","have","{a}","{w}"],["Here","is","{a}","{w}"],["Where","is","the","{w}"]];
+var L1_U=[["I","like","{w}"],["I","see","{w}"],["I","want","{w}"]];
+var L2_T=[["I","can","see","{a}","{w}"],["Look","at","the","{adj}","{w}"],["The","{w}","is","very","{adj}"],["I","want","to","see","{a}","{w}"],["Can","you","see","the","{w}"],["I","have","{a}","{color}","{w}"],["This","is","my","{adj}","{w}"],["The","{color}","{w}","is","here"],["I","like","the","{adj}","{w}"],["Where","is","the","{adj}","{w}"]];
+function sbArt(w){ return "aeiou".indexOf(w.charAt(0))>=0?"an":"a"; }
+function genSentence(level){
+  var tmpl, noun;
+  if(level===1){
+    var useU=SB_UNC.length>0 && Math.random()<0.35;
+    tmpl=useU?rand(L1_U):rand(L1_C);
+    noun=useU?rand(SB_UNC):rand(SB_C);
+  } else { tmpl=rand(L2_T); noun=rand(SB_C); }
+  var adj=rand(SB_ADJ), color=rand(SB_COLOR);
+  var words=tmpl.map(function(t){
+    if(t==="{w}") return noun.en;
+    if(t==="{adj}") return adj;
+    if(t==="{color}") return color;
+    return t;
+  });
+  for(var i=0;i<words.length;i++){ if(words[i]==="{a}") words[i]=sbArt(words[i+1]); }
+  var punct=(tmpl[0]==="Where"||tmpl[0]==="Can")?"?":".";
+  return {words:words, full:words.join(" ")+punct, emoji:noun.emoji, ko:noun.ko};
+}
+var sbLevel=1, sbItem=null, sbTiles=[], sbBuild=[], sbStatus=null, sbReveal=false;
+function sentenceGame(){ sentLevelSelect(); }
+function sentLevelSelect(){
+  var h=backBar("문장 만들기")+'<div class="center" style="padding-top:14px">';
+  h+='<div class="floaty" style="font-size:3.2rem">✍️</div>';
+  h+='<div class="kfont" style="font-size:1.35rem;color:#1f8a7e;margin:8px 0 22px">단계를 골라요!</div>';
+  h+='<div style="display:flex;flex-direction:column;gap:16px">';
+  h+='<div class="tapcard pop" data-lv="1" style="background:#4DB6AC;border-radius:26px;padding:20px;border:4px solid #fff;box-shadow:0 8px 0 rgba(0,0,0,.12)"><div style="font-size:1.7rem;color:#fff;text-shadow:1px 2px 0 rgba(0,0,0,.15)">1단계</div><div class="kfont" style="font-size:1.1rem;color:#ffffffe6">쉬움 · 3~4단어</div></div>';
+  h+='<div class="tapcard pop" data-lv="2" style="background:#00897B;border-radius:26px;padding:20px;border:4px solid #fff;box-shadow:0 8px 0 rgba(0,0,0,.12)"><div style="font-size:1.7rem;color:#fff;text-shadow:1px 2px 0 rgba(0,0,0,.15)">2단계</div><div class="kfont" style="font-size:1.1rem;color:#ffffffe6">조금 어려움 · 4~6단어</div></div>';
+  h+='</div></div>';
+  el(h); bindBack();
+  document.querySelectorAll("[data-lv]").forEach(function(n){ n.onclick=function(){ sbLevel=+n.getAttribute("data-lv"); sbStart(); }; });
+}
+function sbTile(id){ return sbTiles.filter(function(t){return t.id===id;})[0]; }
+function sbStart(){
+  sbItem=genSentence(sbLevel); sbBuild=[]; sbStatus=null; sbReveal=false;
+  sbTiles=shuffle(sbItem.words.map(function(w,i){return {id:i,w:w};}));
+  sbRender(); setTimeout(function(){speak(sbItem.full);},350);
+}
+function sbRender(){
+  var target=sbItem.words;
+  var h=backBar("문장 만들기 "+sbLevel+"단계")+'<div class="center">';
+  h+='<div class="tapcard" id="hear" style="background:#26A69A;border-radius:24px;padding:16px;margin-bottom:16px;border:5px solid #fff;box-shadow:0 8px 22px #26A69A66">'+
+     '<div style="font-size:2.8rem">'+sbItem.emoji+'</div>'+
+     '<div class="kfont" style="font-size:1.2rem;color:#fff">'+sbItem.ko+' · 🔊 문장 다시 듣기</div></div>';
+  h+='<div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:18px">';
+  target.forEach(function(_,i){
+    var placed=sbBuild[i]!=null; var w=placed?sbTile(sbBuild[i]).w:"";
+    h+='<div style="min-width:54px;height:50px;padding:0 10px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:700;color:#1f7a70;background:'+(placed?"#fff":"#E6F4F2")+';border:'+(placed?"3px solid #26A69A":"3px dashed #B6DED8")+'">'+w+'</div>';
+  });
+  h+='</div>';
+  h+='<div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;min-height:54px">';
+  sbTiles.forEach(function(t){
+    var used=sbBuild.indexOf(t.id)>=0;
+    h+='<div class="tapcard" data-tile="'+t.id+'" style="padding:13px 15px;border-radius:13px;font-size:1.3rem;font-weight:700;background:'+(used?"#EAE6DA":"#4FC3F7")+';color:'+(used?"#bbb":"#fff")+';box-shadow:'+(used?"none":"0 5px 0 #2BA7E0")+';opacity:'+(used?.5:1)+'">'+t.w+'</div>';
+  });
+  h+='</div>';
+  if(sbReveal) h+='<div class="pop kfont" style="font-size:1.4rem;color:#26A69A;margin-top:16px">정답: '+sbItem.full+'</div>';
+  h+='<div style="display:flex;gap:10px;margin-top:20px">'+
+     '<div class="tapcard" id="hintBtn" style="flex:1;background:#fff;border-radius:18px;padding:13px;font-size:1.05rem;color:#FF8F00;box-shadow:0 4px 0 rgba(0,0,0,.08)">💡 힌트</div>'+
+     '<div class="tapcard" id="clearBtn" style="flex:1;background:#fff;border-radius:18px;padding:13px;font-size:1.05rem;color:#888;box-shadow:0 4px 0 rgba(0,0,0,.08)">🧹 지우기</div></div>';
+  h+='<div id="fb" style="height:44px;margin-top:14px"></div></div>';
+  el(h); bindBack();
+  document.getElementById("hear").onclick=function(){speak(sbItem.full);};
+  document.getElementById("hintBtn").onclick=function(){ sbReveal=true; speak(sbItem.full); sbRender(); };
+  document.getElementById("clearBtn").onclick=function(){ if(sbStatus!=="good"){ sbBuild=[]; sbStatus=null; sbRender(); } };
+  document.querySelectorAll("[data-tile]").forEach(function(n){
+    n.onclick=function(){
+      if(sbStatus==="good") return;
+      var id=+n.getAttribute("data-tile");
+      if(sbBuild.indexOf(id)>=0) return;
+      var g=memGen;
+      sbBuild.push(id);
+      if(sbBuild.length===target.length){
+        var built=sbBuild.map(function(b){return sbTile(b).w;}).join(" ");
+        sbRender();
+        if(built===target.join(" ")){
+          sbStatus="good"; award(); speak(sbItem.full); confetti();
+          document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.5rem;color:#56C596">정답이에요! 🎉</div>';
+          setTimeout(function(){ if(g!==memGen) return; sbStart(); },2100);
+        } else {
+          sbStatus="bad"; speak("Try again");
+          document.getElementById("fb").innerHTML='<div class="wiggle kfont" style="font-size:1.4rem;color:#FF8A65">다시 한번! 💪</div>';
+          setTimeout(function(){ if(g!==memGen) return; sbBuild=[]; sbStatus=null; sbRender(); },850);
+        }
+      } else { sbRender(); }
+    };
+  });
+}
+
+// ===== 짝 맞추기 (기억력) =====
+var MEM_POOL=WORDS.filter(function(w){return w.en.indexOf(" ")<0 && /^[a-zA-Z]+$/.test(w.en) && w.en.length<=6;});
+var memCards=[], memFirst=-1, memLock=false, memCount=0, memMatched=0, memGen=0;
+function memoryGame(){ memStart(); }
+function memStart(){
+  var counts=[6,8,10]; memCount=rand(counts);
+  var chosen=shuffle(MEM_POOL).slice(0,memCount/2);
+  var cards=[];
+  chosen.forEach(function(w){
+    cards.push({key:w.en,kind:"emoji",label:w.emoji});
+    cards.push({key:w.en,kind:"word",label:w.en});
+  });
+  memCards=shuffle(cards).map(function(c,i){ c.id=i; c.flipped=true; c.matched=false; return c; });
+  memFirst=-1; memMatched=0; memLock=true;
+  var g=memGen; memRender();
+  var fb=document.getElementById("fb"); if(fb) fb.innerHTML='<div class="pop kfont" style="font-size:1.35rem;color:#EC407A">잘 기억하세요! 👀</div>';
+  setTimeout(function(){
+    if(g!==memGen) return;
+    memCards.forEach(function(c){ c.flipped=false; });
+    memLock=false; memRender();
+  }, 2000+memCount*150);
+}
+function memCols(){ return memCount===6?3:(memCount===8?4:5); }
+function memRender(){
+  var cols=memCols();
+  var h=backBar("짝 맞추기")+'<div class="center">';
+  h+='<div class="kfont" style="font-size:1.2rem;color:#EC407A;margin-bottom:14px">그림과 단어 짝을 찾아요! ('+memCount+'장)</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:9px">';
+  memCards.forEach(function(c){
+    var efs=c.kind==="emoji"?(memCount===6?"3.4rem":memCount===8?"2.8rem":"2.1rem"):(memCount===6?"1.5rem":memCount===8?"1.25rem":"1rem");
+    if(c.matched){
+      h+='<div style="aspect-ratio:1;min-height:60px;border-radius:16px;background:#E6F7EC;border:4px solid #56C596;display:flex;align-items:center;justify-content:center;opacity:.85">'+
+         '<div style="font-size:'+efs+';color:#3DA876;font-weight:700;word-break:break-all">'+c.label+'</div></div>';
+    } else if(c.flipped){
+      var col=c.kind==="emoji"?"#FFB300":"#4FC3F7";
+      h+='<div class="pop" style="aspect-ratio:1;min-height:60px;border-radius:16px;background:#fff;border:4px solid '+col+';display:flex;align-items:center;justify-content:center">'+
+         '<div style="font-size:'+efs+';color:'+col+';font-weight:700;word-break:break-all">'+c.label+'</div></div>';
+    } else {
+      h+='<div class="tapcard" data-card="'+c.id+'" style="aspect-ratio:1;min-height:60px;border-radius:16px;background:linear-gradient(145deg,#9575CD,#7E57C2);border:4px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 0 rgba(0,0,0,.12)">'+
+         '<div style="font-size:1.8rem;color:#fff">❓</div></div>';
+    }
+  });
+  h+='</div><div id="fb" style="height:44px;margin-top:16px"></div></div>';
+  el(h); bindBack();
+  document.querySelectorAll("[data-card]").forEach(function(n){
+    n.onclick=function(){ memTap(+n.getAttribute("data-card")); };
+  });
+}
+function memTap(id){
+  if(memLock) return;
+  var c=memCards.filter(function(x){return x.id===id;})[0];
+  if(!c||c.flipped||c.matched) return;
+  var g=memGen;
+  c.flipped=true; speak(c.key);
+  if(memFirst===-1){ memFirst=id; memRender(); return; }
+  var first=memCards.filter(function(x){return x.id===memFirst;})[0];
+  memRender();
+  if(first.key===c.key){
+    memLock=true;
+    setTimeout(function(){
+      if(g!==memGen) return;
+      first.matched=true; c.matched=true; memMatched++; memFirst=-1; memLock=false; spawnCritter();
+      if(memMatched===memCount/2){
+        award(); speak(rand(PRAISES)); confetti(); memRender();
+        document.getElementById("fb").innerHTML='<div class="pop kfont" style="font-size:1.6rem;color:#56C596">다 맞혔어요! 🎉</div>';
+        setTimeout(function(){ if(g!==memGen) return; memStart(); },2100);
+      } else { memRender(); }
+    },650);
+  } else {
+    memLock=true;
+    setTimeout(function(){ if(g!==memGen) return; first.flipped=false; c.flipped=false; memFirst=-1; memLock=false; memRender(); },1000);
+  }
+}
+
+// ===== 내 스티커 =====
+function stickers(){
+  var h=backBar("내 스티커");
+  h+='<p class="kfont center" style="font-size:1.4rem;color:#FF8F00;margin:0 0 18px">모은 스티커: '+collected+' / '+STICKERS.length+'</p><div class="grid4">';
+  STICKERS.forEach(function(s,i){
+    var got=i<collected;
+    h+='<div class="'+(got?"pop":"")+'" style="padding:16px 0;text-align:center;font-size:2.2rem;border-radius:20px;'+
+       'background:'+(got?"#fff":"#F1E8DB")+';border:'+(got?"4px solid #FFD93D":"4px dashed #DCCBB5")+';box-shadow:'+(got?"0 4px 0 rgba(0,0,0,.08)":"none")+'">'+(got?s:"❓")+'</div>';
+  });
+  h+='</div>';
+  if(collected>0) h+='<div class="tapcard center" id="resetBtn" style="margin-top:20px;background:#fff;border-radius:18px;padding:12px;color:#bbb;font-size:1rem;box-shadow:0 3px 0 rgba(0,0,0,.06)">처음부터 다시 모으기</div>';
+  h+='<p class="kfont center" style="color:#9a8a7a;margin-top:16px;font-size:1.05rem">게임에서 정답을 맞히면 스티커가 모여요! 🏆</p>';
+  el(h); bindBack();
+  var r=document.getElementById("resetBtn");
+  if(r) r.onclick=function(){ collected=0; saveStk(0); stickers(); };
+}
+
+function go(s){
+  clearCritters();
+  if(s==="listen") listen();
+  else if(s==="first") first();
+  else if(s==="spell") spell();
+  else if(s==="fill") fillGame();
+  else if(s==="sentence") sentenceGame();
+  else if(s==="memory") memoryGame();
+  else if(s==="stickers") stickers();
+  else home();
+}
+home();
+</script>
+</body>
+</html>
