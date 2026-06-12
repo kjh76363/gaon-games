@@ -43,7 +43,7 @@ h2 { font-size:1.7rem; color:#FF6B9D; margin:0; }
 <body>
 <div id="app" class="wrap"></div>
 <div id="critters"></div>
-<div class="verbadge">0.2</div>
+<div class="verbadge">0.4</div>
 <script>
 var WORDS = [
  {word:"곰",emoji:"🐻"},{word:"토끼",emoji:"🐰"},{word:"사자",emoji:"🦁"},{word:"호랑이",emoji:"🐯"},
@@ -90,7 +90,7 @@ var SYLLABLES = (function(){
   return out;
 })();
 
-var STICKERS = ["🦄","🌈","⭐","🎈","🍭","🦋","🌟","🎀","🧸","🍓","🐧","🚀","🌻","🍩","🐳","🎨"];
+var STICKERS = ["🦄","🌈","⭐","🎈","🍭","🦋","🌟","🎀","🧸","🍓","🐧","🚀","🌻","🍩","🐳","🎨","🍦","🧁","🍪","🍰","🍌","🍒","🍇","🥝","🦊","🐰","🐼","🐨","🐢","🐙","🐝","🐞","🎁","🪁","🎠","👑","💎","🍀","🪐","🎉"];
 var CRITTERS = ["🐰","🐿️","🐹","🐱","🐶","🐻","🦊","🐥","🐭","🦔","🐨","🐼","🐧","🐤"];
 var PRAISES = ["굿잡","잘했어요","최고예요","멋져요","대단해요","좋았어요","훌륭해요","나이스","정답","와우"];
 
@@ -156,6 +156,7 @@ function home(){
     {id:"game",label:"글자 찾기 놀이",emoji:"🎮",bg:"#64B5F6",desc:"소리 듣고 글자 맞히기"},
     {id:"spell",label:"낱말 만들기",emoji:"🧩",bg:"#FF8FAB",desc:"글자를 순서대로 놓기"},
     {id:"type",label:"낱말 타이핑",emoji:"⌨️",bg:"#BA68C8",desc:"그림 보고 글자 쓰기"},
+    {id:"match",label:"O X 게임",emoji:"⭕",bg:"#4DD0E1",desc:"그림과 글자 맞으면 O"},
     {id:"stickers",label:"내 스티커",emoji:"🏆",bg:"#FFB347",desc:"모은 스티커 "+collected+"개"}
   ];
   var h='<div class="center" style="padding-top:18px">'+
@@ -320,6 +321,44 @@ function typeCheck(){
   }
 }
 
+// ===== O X 게임 =====
+var mScore=0, mQ=null, mLocked=false;
+function match(){ mScore=0; matchRound(); }
+function matchRound(){
+  var a=rand(WORDS); var isMatch=Math.random()<0.5; var word=a.word;
+  if(!isMatch){ var b=rand(WORDS); while(b.word===a.word) b=rand(WORDS); word=b.word; }
+  mQ={emoji:a.emoji, word:word, isMatch:isMatch}; mLocked=false;
+  var h=backBar("O X 게임")+'<div class="center">'+scoreBadge(mScore);
+  h+='<div class="gfont" style="font-size:1.4rem;color:#7A6A5A;margin-bottom:16px">그림과 글자가 같을까요?</div>';
+  h+='<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">'+
+     '<div style="flex:1;text-align:center;background:#fff;border-radius:24px;padding:20px 0;border:5px solid #FFD93D;box-shadow:0 6px 0 rgba(0,0,0,.08)"><div style="font-size:4.6rem">'+mQ.emoji+'</div></div>'+
+     '<div style="font-size:2rem;color:#cbb">?</div>'+
+     '<div class="tapcard" id="wordCard" style="flex:1;text-align:center;background:#fff;border-radius:24px;padding:20px 0;border:5px solid #BA68C8;box-shadow:0 6px 0 rgba(0,0,0,.08)"><div style="font-size:2.7rem;color:#8E3FA0">'+mQ.word+'</div></div>'+
+     '</div>';
+  h+='<div style="display:flex;justify-content:center;gap:34px;margin-top:28px">'+
+     '<div class="tapcard" id="btnO" style="width:96px;height:96px;border-radius:50%;background:#56C596;color:#fff;display:flex;align-items:center;justify-content:center;font-size:3rem;box-shadow:0 7px 0 #3E9E72">O</div>'+
+     '<div class="tapcard" id="btnX" style="width:96px;height:96px;border-radius:50%;background:#FF6B6B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:3rem;box-shadow:0 7px 0 #D94A4A">X</div>'+
+     '</div>';
+  h+='<div id="fb" style="height:50px;margin-top:22px"></div></div>';
+  el(h); bindBack();
+  document.getElementById("wordCard").onclick=function(){ speak(mQ.word); };
+  document.getElementById("btnO").onclick=function(){ matchAnswer(true); };
+  document.getElementById("btnX").onclick=function(){ matchAnswer(false); };
+}
+function matchAnswer(saidMatch){
+  if(mLocked) return; mLocked=true;
+  var fb=document.getElementById("fb");
+  if(saidMatch===mQ.isMatch){
+    mScore++; award(); speak(rand(PRAISES)); confetti();
+    fb.innerHTML='<div class="pop gfont" style="font-size:1.8rem;color:#56C596">맞았어요! 🎉</div>';
+    setTimeout(matchRound,1400);
+  } else {
+    speak("아쉬워요");
+    fb.innerHTML='<div class="wiggle gfont" style="font-size:1.6rem;color:#FF6B6B">땡! '+(mQ.isMatch?"같은 거였어요":"다른 거였어요")+' 💪</div>';
+    setTimeout(matchRound,1400);
+  }
+}
+
 // ===== 내 스티커 =====
 function stickers(){
   var h=backBar("내 스티커");
@@ -341,6 +380,7 @@ function go(s){
   if(s==="game") game();
   else if(s==="spell") spell();
   else if(s==="type") typeGame();
+  else if(s==="match") match();
   else if(s==="stickers") stickers();
   else home();
 }
